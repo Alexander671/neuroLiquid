@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>/home/alexander/haskell/project/neuroLiquid/app/Main.hs</title>
+</head>
+<head>
+<link type='text/css' rel='stylesheet' href='liquid.css' />
+</head>
+
+<body>
+<hr>
+Put mouse over identifiers to see inferred types
+<pre><span class=hs-linenum> 1: </span><span class='hs-comment'>{-# LANGUAGE DataKinds #-}</span>
+<span class=hs-linenum> 2: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>Main</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum> 3: </span>
+<span class=hs-linenum> 4: </span><span class='hs-keyword'>{-@</span> <span class='hs-conid'>LIQUID</span> <span class='hs-str'>"--reflection"</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 5: </span><span class='hs-keyword'>{-@</span> <span class='hs-conid'>LIQUID</span> <span class='hs-str'>"--no-termination"</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 6: </span><span class='hs-keyword'>{-@</span> <span class='hs-conid'>LIQUID</span> <span class='hs-str'>"--no-total"</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 7: </span><span class='hs-keyword'>import</span> <span class='hs-keyword'>qualified</span> <span class='hs-conid'>Data.Vector</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>DV</span>
+<span class=hs-linenum> 8: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Numeric.LinearAlgebra</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>NA</span>
+<span class=hs-linenum> 9: </span>
+<span class=hs-linenum>10: </span><span class='hs-definition'>main</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<span class=hs-linenum>11: </span><span class='hs-definition'>main</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>12: </span>      <span class='hs-varid'>print</span> <span class='hs-varop'>$</span> <span class='hs-varid'>test</span>
+<span class=hs-linenum>13: </span>
+<span class=hs-linenum>14: </span><span class='hs-definition'>test</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Double</span>
+<span class=hs-linenum>15: </span><span class='hs-definition'>test</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromList</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>1</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>)</span> <span class='hs-varop'>&lt;.&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromList</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>1</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>)</span></pre>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{-# LANGUAGE DataKinds #-}
+module Main where
+
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-total" @-}
+import qualified Data.Vector as DV
+import Numeric.LinearAlgebra as NA
+
+main :: IO ()
+main = do
+      print $ test
+
+test :: Double
+test = (fromList [1]) <.> (fromList [1])

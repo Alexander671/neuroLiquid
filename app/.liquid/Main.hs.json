@@ -1,0 +1,1 @@
+{"status":"error","types":{},"sptypes":[],"errors":[{"start":{"line":14,"column":7},"stop":{"line":14,"column":8},"message":"parse specification:\n    unexpected \"=\"\n    expecting measurePatP, space or \"::\""}]}

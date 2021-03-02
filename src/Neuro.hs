@@ -1,0 +1,125 @@
+﻿{-# LANGUAGE BangPatterns,RecordWildCards,FlexibleContexts,TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
+
+module Neuro where
+
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--no-total" @-}
+
+import Codec.Compression.Zlib     (compress, decompress)
+
+import Data.Binary                (Binary(..), encode, decode)
+import Data.List                  (foldl')
+import Foreign.Storable           (Storable)
+
+import qualified Data.ByteString.Lazy  as BS
+import qualified Data.Vector           as DV
+      (Vector,
+      toList,
+      fromList,
+      snoc,empty,
+      foldl',
+      scanl,scanr,
+      zipWith,
+      tail,init,last,zip,map, head)
+import Numeric.LinearAlgebra
+    ( (#>),
+      reshape,
+      vector,
+      cmap,
+      (<.>),
+      (><),
+      outer,
+      vjoin,
+      Element,
+      Matrix,
+      Container,
+      Linear(scale),
+      Numeric,
+      RealOf,
+      Transposable(tr),
+      Normed(norm_2),
+      Vector)
+import System.Random.MWC as MWC
+    ( Variate, asGenST, uniformVector, withSystemRandom )
+
+newtype Network a = Network
+                 { matrices   :: DV.Vector (Matrix a)
+                 } deriving Show
+
+instance (Element a, Binary a) => Binary (Network a) where
+  put (Network ms) = put . DV.toList $ ms
+  get = (Network . DV.fromList) `fmap` get                 
+
+type ActivationFunction a = a -> a
+
+type ActivationFunctionDerivative a = a -> a
+
+trainNTimes :: (Floating (Vector a), Floating a, Numeric a, Num (Vector a), Container Vector a) => Int -> a -> ActivationFunction a -> ActivationFunctionDerivative a -> Network a -> Samples a -> Network a
+trainNTimes n = trainUntil (\k _ _ -> k > n)
+
+trainUntil :: (Floating (Vector a), Floating a, Numeric a, Num (Vector a), Container Vector a) => (Int -> Network a -> Samples a -> Bool) -> a -> ActivationFunction a -> ActivationFunctionDerivative a -> Network a -> Samples a -> Network a
+trainUntil pr learningRate act act' net samples = go net 0
+  where go n !k | pr k n samples = n
+                | otherwise      = case backpropOnce learningRate act act' n samples of
+                                    n' -> go n' (k+1)
+
+createNetwork :: (Variate a, Storable a) => Int -> [Int] -> Int -> IO (Network a)
+createNetwork nInputs hiddens nOutputs =
+  fmap Network $ withSystemRandom . asGenST $ \gen -> go gen dimensions DV.empty
+  where
+        go _ [] !ms         = return ms
+        go gen ((!n,!m):ds) ms = do
+          !mat <- randomMat n m gen
+          go gen ds (ms `DV.snoc` mat)
+        randomMat n m g = reshape m `fmap` uniformVector g (n*m)
+        dimensions      = zip (hiddens ++ [nOutputs]) $
+                              (nInputs+1 : hiddens)
+
+fromWeightMatrices :: Storable a => DV.Vector (Matrix a) -> Network a
+fromWeightMatrices ws = Network ws
+
+output :: (Floating (Vector a), Numeric a, Storable a, Num (Vector a)) => Network a -> ActivationFunction a -> Vector a -> Vector a
+output (Network{..}) act input = DV.foldl' f (vjoin [input, 1]) matrices
+  where f !inp m = cmap act $ m #> inp
+
+outputs :: (Floating (Vector a), Numeric a, Storable a, Num (Vector a)) => Network a -> ActivationFunction a -> Vector a -> DV.Vector (Vector a)
+outputs (Network{..}) act input = DV.scanl f (vjoin [input, 1]) matrices
+  where f !inp m = cmap act $ m #> inp
+
+deltas :: (Floating (Vector a), Floating a, Numeric a, Container Vector a, Num (Vector a)) => Network a -> ActivationFunctionDerivative a -> DV.Vector (Vector a) -> Vector a -> DV.Vector (Matrix a)
+deltas (Network{..}) act' os expected = DV.zipWith outer (DV.tail ds) (DV.init os)
+  where !dl = (DV.last os - expected) * (deriv $ DV.last os)
+        !ds = DV.scanr f dl (DV.zip os matrices)
+        f (!o, m) !del = deriv o * (tr m #> del)
+        deriv = cmap act'
+
+updateNetwork :: (Floating (Vector a), Floating a, Numeric a, Storable a, Num (Vector a), Container Vector a) => a -> ActivationFunction a -> ActivationFunctionDerivative a -> Network a -> Sample a -> Network a
+updateNetwork alpha act act' n@(Network{..}) (input, expectedOutput) = Network $ DV.zipWith (+) matrices corr
+    where !xs = outputs n act input
+          !ds = deltas n act' xs expectedOutput
+          !corr = DV.map (scale (-alpha)) ds
+          
+type Sample a = (Vector a, Vector a)
+
+type Samples a = [Sample a]
+
+
+backpropOnce :: (Floating (Vector a), Floating a, Numeric a, Num (Vector a), Container Vector a) => a -> ActivationFunction a -> ActivationFunctionDerivative a -> Network a -> Samples a -> Network a
+backpropOnce rate act act' n samples = foldl' (updateNetwork rate act act') n samples
+
+
+quadError :: (Floating (Vector a), Floating a, Fractional (RealOf a), Normed (Vector a), Numeric a) => ActivationFunction a -> Network a -> Samples a -> RealOf a
+quadError act net samples = realToFrac $ foldl' (\err (inp, out) -> err + (norm_2 $ output net act inp - out)) 0 samples
+
+
+tanh' :: Floating a => a -> a
+tanh' x = let s = tanh x
+           in 1 - s**2
+
+loadNetwork :: (Storable a, Element a, Binary a) => FilePath -> IO (Network a)
+loadNetwork fp = return . decode . decompress =<< BS.readFile fp
+
+saveNetwork :: (Storable a, Element a, Binary a) => FilePath -> Network a -> IO ()
+saveNetwork fp net = BS.writeFile fp . compress $ encode net

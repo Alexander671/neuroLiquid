@@ -1,0 +1,74 @@
+﻿{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
+module Algebra where
+
+import qualified Numeric.LinearAlgebra as NLA
+import qualified Numeric.LinearAlgebra.Data as NLAD
+import qualified Data.Vector.Storable as DVS
+
+
+{-@ measure slen :: Data.Vector.Storable.Vector t -> Int @-}
+
+{-@ measure cols :: Matrix t -> Nat @-}
+
+{-@ measure rows :: Matrix t -> Nat @-}
+
+
+----------------- >?????????
+{-@ measure natMatrix :: Element t => x:(Matrix t) -> {v:Bool | v == True} @-}
+natMatrix :: (Ord t, Num t, DVS.Storable t, NLA.Element t) => NLA.Matrix t -> Bool
+natMatrix = all ( >= 0) . concatMap DVS.toList .  NLA.toRows
+
+{-@ assume sqrtm :: Field t => {m:Matrix t | natMatrix m} -> Matrix t @-}
+
+{-@ type NonNegSt t = {v:(Data.Vector.Storable.Vector t) | slen v >= 0} @-}
+
+{-@ type NonNegInt = {v:Int | v >= 0} @-}
+
+{-@ assume Data.Vector.Storable.length :: x:_ -> {n:Nat | n = slen x} @-}
+
+{-@ assume Data.Vector.Storable.unsafeIndex :: x:(NonNegSt t) -> {i:Nat | i <= slen x} -> t @-}
+
+{-@ assume (<.>) :: x:_ -> {i:(NonNegSt t) | (slen i) == (slen x)} -> t @-}
+
+{-@ assume (#>) :: xs:_ -> {ys:NonNegSt t | (slen ys) == (cols xs)} -> rs:_ @-}
+
+{-@ assume (<#) :: xs:_ -> {ys:Matrix t | (slen xs) == (rows ys)} -> rs:_ @-}
+
+{-@ assume (><) :: Storable a => x:Nat -> y:Nat -> xs:[a] -> {m:Matrix a | cols m == y && rows m == x} @-}
+
+{-@ assume outer :: Product a => xs:(NonNegSt t) -> {ys:NonNegSt t | slen xs == slen ys} -> rs:_  @-}
+
+{-@ assume reshape ::  Storable t => {x:Int | x > 0} -> {v:DVS.Vector t | slen v >= x} -> Matrix t  @-}
+
+{-@ assume Data.Vector.Storable.fromList :: xs:_ -> {v:_ | slen v == len xs } @-}
+
+{-@ assume Data.Vector.Storable.toList :: xs:_ -> {v:_ | slen xs == len v } @-}
+
+{-@ assume norm_2 :: a -> {r:Double | r >=1 && r <= 1} @-}
+
+test1 :: Char
+test1 = flip DVS.unsafeIndex 1 $ DVS.fromList ['1','2']
+
+test2 :: NLA.Matrix Double
+test2 = (5 NLA.>< 6) [1..] 
+
+test3 :: Double
+test3 = DVS.fromList [1] NLA.<.> DVS.fromList [2]
+
+test4 :: DVS.Vector Double
+test4 = (5 NLA.>< 3) [10,20,30] NLA.#> DVS.fromList [10,20,30]
+
+test5 :: DVS.Vector Double
+test5 = DVS.fromList [1,2,3] NLA.<# (3 NLA.>< 1) [1..]
+
+test6 :: NLA.Product a => NLA.Matrix a
+test6 = NLA.outer (DVS.fromList [1,2,3]) $ DVS.fromList [4,5,6]
+
+test7 :: NLA.R
+test7 = NLA.norm_2 (DVS.fromList ([-5,-5,-5] :: [Double]))
+
+test8 :: NLA.Matrix Double
+test8 = NLA.sqrtm $ (2 NLA.>< 2) [1,9,1,4]
+
+test9 :: NLAD.Matrix Double
+test9 = NLA.reshape 4 $ DVS.fromList ([1,2,3,4]::[Double])
